@@ -97,8 +97,6 @@ class SecurityManager {
             /-----BEGIN [A-Z ]+-----/, // PEM format keys/certs
         ];
         
-        const sanitized = this.deepSanitize({ ...data });
-        
         function deepSanitize(obj) {
             if (typeof obj === 'string') {
                 // Check for sensitive patterns in string values
@@ -132,7 +130,7 @@ class SecurityManager {
             return obj;
         }
         
-        return deepSanitize(sanitized);
+        return deepSanitize({ ...data });
     }
 
     // Rate Limiting & DDoS Protection
