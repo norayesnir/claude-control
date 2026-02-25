@@ -237,18 +237,26 @@ class ClaudeControlHook {
 
         // Poll for phone approval
         return new Promise((resolve) => {
+            let polling = true;
+            
             const checkApproval = () => {
+                if (!polling) return; // Stop polling if approval already processed
+                
                 const status = this.checkApprovalStatus(approvalId);
                 
                 if (status === 'approved') {
+                    polling = false;
                     console.log('✅ Operation approved via phone');
                     resolve({ allowed: true, reason: 'Approved via phone', source: 'phone' });
                 } else if (status === 'denied') {
+                    polling = false;
                     console.log('❌ Operation denied via phone');
                     resolve({ allowed: false, reason: 'Denied via phone', source: 'phone' });
                 } else {
-                    // Check again in 2 seconds
-                    setTimeout(checkApproval, 2000);
+                    // Check again in 2 seconds if still polling
+                    if (polling) {
+                        setTimeout(checkApproval, 2000);
+                    }
                 }
             };
 
@@ -374,6 +382,10 @@ if (require.main === module) {
             };
             hook.handleToolCall(testOperation).then(result => {
                 console.log('Test result:', result);
+                process.exit(0);
+            }).catch(error => {
+                console.error('Test failed:', error);
+                process.exit(1);
             });
             break;
         default:

@@ -512,11 +512,11 @@ class SecureTelegramClient {
         // Validate and sanitize message
         const sanitizedText = this.validateInput(text, 'message');
         
-        // Encrypt if enabled
-        const messageToSend = this.encryptMessage(sanitizedText);
+        // Encrypt for logging/audit purposes but send readable text to Telegram
+        const encryptedForAudit = this.encryptMessage(sanitizedText);
         
-        // Add security notice
-        const secureText = `${messageToSend}\n\n🛡️ <i>Secure message from Claude Control</i>`;
+        // Send readable text to user, but log the encrypted version
+        const secureText = `${sanitizedText}\n\n🛡️ <i>Secure message from Claude Control</i>`;
 
         const messageData = {
             chat_id: targetChatId,
@@ -537,10 +537,11 @@ class SecureTelegramClient {
             throw new Error(`Telegram API error: ${response.description}`);
         }
 
-        // Log successful message
+        // Log successful message with encrypted content for audit trail
         this.security.logger.info('Secure message sent', {
             chatId: targetChatId,
             messageLength: sanitizedText.length,
+            encryptedMessage: encryptedForAudit,
             encrypted: this.config.encryptMessages,
             hasKeyboard: !!keyboard
         });
