@@ -1,0 +1,30 @@
+{
+  "enabled": true,
+  "allowTerminalApproval": true,
+  "allowPhoneApproval": true,
+  "autoTimeoutMs": 300000,
+  "requireApproval": [
+    "Edit",
+    "Write", 
+    "MultiEdit",
+    "Bash"
+  ],
+  "autoApprove": [
+    "Read",
+    "Glob", 
+    "Grep"
+  ],
+  "dangerousPatterns": [
+    "rm -rf",
+    "sudo",
+    "curl.*[|&;]",
+    "wget.*[|&;]",
+    "sh.*[|&;]",
+    "bash.*[|&;]",
+    "exec",
+    "eval",
+    "system",
+    "passthru",
+    "shell_exec"
+  ]
+}

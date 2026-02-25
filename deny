@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Quick denial command for Claude Code Remote Control
+# Usage: ./deny <operation_id> [reason]
+
+CONTROL_DIR="$HOME/.claude-control"
+APPROVAL_SCRIPT="$CONTROL_DIR/scripts/approval_manager.js"
+
+OPERATION_ID="$1"
+REASON="${*:2}"
+
+if [ -z "$OPERATION_ID" ]; then
+    echo "Usage: ./deny <operation_id> [reason]"
+    echo "Example: ./deny 1645123456 too risky"
+    exit 1
+fi
+
+if [ -z "$REASON" ]; then
+    REASON="Denied manually"
+fi
+
+echo "❌ Denying operation $OPERATION_ID..."
+node "$APPROVAL_SCRIPT" deny "$OPERATION_ID" "$REASON"
+
+if [ $? -eq 0 ]; then
+    echo "❌ Operation $OPERATION_ID has been denied!"
+else
+    echo "❌ Failed to deny operation $OPERATION_ID"
+fi

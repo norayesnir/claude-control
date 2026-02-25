@@ -1,0 +1,204 @@
+#!/usr/bin/env node
+
+/**
+ * Claude Control Script
+ * Easy management for your Claude Code hook system
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const HOOK_SCRIPT = path.join(__dirname, 'scripts', 'claude_control_hook.js');
+const TELEGRAM_SCRIPT = path.join(__dirname, 'scripts', 'secure_telegram_client.js');
+const APPROVAL_SCRIPT = path.join(__dirname, 'scripts', 'approval_manager.js');
+
+class ClaudeControl {
+    constructor() {
+        this.configFile = path.join(__dirname, 'config.json');
+    }
+
+    async executeCommand(command, args = []) {
+        return new Promise((resolve, reject) => {
+            const child = spawn('node', [command, ...args], {
+                stdio: 'inherit',
+                cwd: __dirname
+            });
+            
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Command failed with code ${code}`));
+                }
+            });
+        });
+    }
+
+    async hook(action = 'status') {
+        try {
+            await this.executeCommand(HOOK_SCRIPT, [action]);
+        } catch (error) {
+            console.error(`❌ Hook command failed: ${error.message}`);
+        }
+    }
+
+    async telegram(action = 'status') {
+        try {
+            await this.executeCommand(TELEGRAM_SCRIPT, [action]);
+        } catch (error) {
+            console.error(`❌ Telegram command failed: ${error.message}`);
+        }
+    }
+
+    async approval(action = 'status') {
+        try {
+            await this.executeCommand(APPROVAL_SCRIPT, [action]);
+        } catch (error) {
+            console.error(`❌ Approval command failed: ${error.message}`);
+        }
+    }
+
+    async status() {
+        console.log('🎯 CLAUDE CONTROL STATUS');
+        console.log('=====================\n');
+        
+        console.log('📊 Hook System:');
+        await this.hook('status');
+        
+        console.log('\n📱 Telegram Client:');
+        await this.telegram('status');
+        
+        console.log('\n📋 Approval Queue:');
+        await this.approval('status');
+    }
+
+    async start() {
+        console.log('🚀 Starting Claude Control...\n');
+        
+        // Enable hook
+        await this.hook('enable');
+        
+        // Start Telegram polling in background
+        console.log('📱 Starting Telegram client...');
+        const telegramProcess = spawn('node', [TELEGRAM_SCRIPT, 'poll'], {
+            detached: true,
+            stdio: 'ignore'
+        });
+        telegramProcess.unref();
+        
+        console.log('✅ Claude Control is now active!');
+        console.log('💡 Use "claude-control stop" to disable');
+    }
+
+    async stop() {
+        console.log('🛑 Stopping Claude Control...\n');
+        
+        // Disable hook
+        await this.hook('disable');
+        
+        // Kill Telegram processes
+        console.log('📱 Stopping Telegram client...');
+        try {
+            await this.executeCommand('pkill', ['-f', 'secure_telegram_client.js']);
+        } catch (error) {
+            // Ignore errors - process might not be running
+        }
+        
+        console.log('✅ Claude Control stopped');
+    }
+
+    showHelp() {
+        console.log('🎯 Claude Control - Control your Claude Code approvals');
+        console.log('');
+        console.log('Usage: claude-control <command> [options]');
+        console.log('');
+        console.log('Commands:');
+        console.log('  start              Start the approval system');
+        console.log('  stop               Stop the approval system');
+        console.log('  status             Show system status');
+        console.log('  restart            Restart the system');
+        console.log('');
+        console.log('Hook Control:');
+        console.log('  hook enable        Enable approval hook');
+        console.log('  hook disable       Disable approval hook');
+        console.log('  hook status        Show hook status');
+        console.log('  hook test          Test the approval flow');
+        console.log('');
+        console.log('Telegram Control:');
+        console.log('  telegram start     Start Telegram polling');
+        console.log('  telegram test      Test bot connection');
+        console.log('  telegram status    Show Telegram status');
+        console.log('');
+        console.log('Approval Management:');
+        console.log('  approve <id>       Approve operation');
+        console.log('  deny <id>          Deny operation');
+        console.log('  queue              Show pending operations');
+        console.log('');
+        console.log('Examples:');
+        console.log('  claude-control start         # Start the system');
+        console.log('  claude-control hook disable  # Disable approvals');
+        console.log('  claude-control approve 123   # Approve operation 123');
+        console.log('  claude-control status        # Show everything');
+    }
+}
+
+// CLI handling
+async function main() {
+    const control = new ClaudeControl();
+    const [,, command, ...args] = process.argv;
+
+    try {
+        switch (command) {
+            case 'start':
+                await control.start();
+                break;
+            case 'stop':
+                await control.stop();
+                break;
+            case 'restart':
+                await control.stop();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                await control.start();
+                break;
+            case 'status':
+                await control.status();
+                break;
+            case 'hook':
+                await control.hook(args[0] || 'status');
+                break;
+            case 'telegram':
+                await control.telegram(args[0] || 'status');
+                break;
+            case 'approve':
+            case 'deny':
+                await control.approval(command, args[0]);
+                break;
+            case 'queue':
+                await control.approval('status');
+                break;
+            case 'help':
+            case '--help':
+            case '-h':
+                control.showHelp();
+                break;
+            default:
+                if (!command) {
+                    await control.status();
+                } else {
+                    console.log(`❌ Unknown command: ${command}`);
+                    console.log('Use "claude-control help" for usage information');
+                }
+                break;
+        }
+    } catch (error) {
+        console.error(`❌ Error: ${error.message}`);
+        process.exit(1);
+    }
+}
+
+if (require.main === module) {
+    main();
+}
+
+module.exports = ClaudeControl;

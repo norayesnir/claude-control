@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Quick approval command for Claude Code Remote Control
+# Usage: ./approve <operation_id> [reason]
+
+CONTROL_DIR="$HOME/.claude-control"
+APPROVAL_SCRIPT="$CONTROL_DIR/scripts/approval_manager.js"
+
+OPERATION_ID="$1"
+REASON="${*:2}"
+
+if [ -z "$OPERATION_ID" ]; then
+    echo "Usage: ./approve <operation_id> [reason]"
+    echo "Example: ./approve 1645123456 looks good"
+    exit 1
+fi
+
+if [ -z "$REASON" ]; then
+    REASON="Approved manually"
+fi
+
+echo "✅ Approving operation $OPERATION_ID..."
+node "$APPROVAL_SCRIPT" approve "$OPERATION_ID" "$REASON"
+
+if [ $? -eq 0 ]; then
+    echo "✅ Operation $OPERATION_ID has been approved!"
+else
+    echo "❌ Failed to approve operation $OPERATION_ID"
+fi
