@@ -8,8 +8,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
@@ -133,45 +131,6 @@ class SecurityManager {
         return deepSanitize({ ...data });
     }
 
-    // Rate Limiting & DDoS Protection
-    createRateLimit(options = {}) {
-        return rateLimit({
-            windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
-            max: options.max || 100, // limit each IP to 100 requests per windowMs
-            message: {
-                error: 'Too many requests from this IP, please try again later.',
-                retryAfter: Math.ceil(options.windowMs / 1000) || 900
-            },
-            standardHeaders: true,
-            legacyHeaders: false,
-            skip: (req) => {
-                // No automatic exemptions - all requests are rate limited
-                return false;
-            },
-            handler: (req, res, next, options) => {
-                this.logger.warn('Rate limit exceeded', {
-                    ip: req.ip,
-                    userAgent: req.get('User-Agent'),
-                    path: req.path
-                });
-                res.status(options.statusCode).json({
-                    error: 'Too many requests from this IP, please try again later.',
-                    retryAfter: Math.ceil(options.windowMs / 1000)
-                });
-            }
-        });
-    }
-
-    createSlowDown(options = {}) {
-        return slowDown({
-            windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
-            delayAfter: options.delayAfter || 50, // allow 50 requests per windowMs without delay
-            delayMs: options.delayMs || 500, // add 500ms delay per request after delayAfter
-            maxDelayMs: options.maxDelayMs || 10000, // max delay of 10 seconds
-            skipFailedRequests: false,
-            skipSuccessfulRequests: false
-        });
-    }
 
     // Authentication & Authorization
     async hashPassword(password) {
@@ -344,40 +303,6 @@ class SecurityManager {
         return errors;
     }
 
-    // Security Headers
-    getSecurityHeaders() {
-        return {
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY',
-            'X-XSS-Protection': '1; mode=block',
-            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-            'Content-Security-Policy': this.getCSP(),
-            'Referrer-Policy': 'strict-origin-when-cross-origin',
-            'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
-            'Cross-Origin-Embedder-Policy': 'require-corp',
-            'Cross-Origin-Opener-Policy': 'same-origin',
-            'Cross-Origin-Resource-Policy': 'same-origin',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        };
-    }
-
-    getCSP() {
-        return [
-            "default-src 'self'",
-            "script-src 'self'",
-            "style-src 'self'",
-            "img-src 'self' data:",
-            "connect-src 'self'",
-            "font-src 'self'",
-            "object-src 'none'",
-            "media-src 'none'",
-            "frame-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'"
-        ].join('; ');
-    }
 
     // Request Signing
     signRequest(data, timestamp = Date.now()) {
